@@ -11,11 +11,14 @@ import time
 import os
 
 
-def fetch_pdf_from_amsystem(url, username, password):
-    driver = webdriver.Chrome()
+def fetch_pdf_from_amsystem(url, username, password, download_dir):
+    chromeOptions = webdriver.ChromeOptions()
+    prefs = {"download.default_directory": download_dir}
+    chromeOptions.add_experimental_option("prefs", prefs)
+    driver = webdriver.Chrome(options=chromeOptions)
     driver.get(url)
 
-    time.sleep(5)  # Let the user actually see something!
+    time.sleep(2)  # Let the user actually see something!
     username_input = driver.find_element(by=By.NAME, value="username")
     username_input.send_keys(username)
 
@@ -24,6 +27,36 @@ def fetch_pdf_from_amsystem(url, username, password):
 
     submit_btn = driver.find_element(by=By.ID, value="submit")
     submit_btn.click()
+
+    time.sleep(2)  # Let the user actually see something!
+
+    # Most of it is inside an iframe
+    driver.switch_to.frame(0)
+
+    nav_tree = driver.find_elements(by=By.CLASS_NAME, value="c-li")
+    for nav_tree_item in nav_tree:
+        if not nav_tree_item.get_attribute("open"):
+            angle_btns = nav_tree_item.find_elements(
+                by=By.CLASS_NAME, value="fa-angle-right"
+            )
+            if angle_btns:
+                angle_btns[0].click()
+                time.sleep(1)
+            else:
+                # This is a leaf node
+
+                # Open directory preview
+                nav_tree_item.click()
+                time.sleep(1)
+
+                finder_data = driver.find_element(by=By.CLASS_NAME, value="finder-data")
+                finder_data.find_elements(by=By.CLASS_NAME, value="thumbnail-helper")[
+                    0
+                ].click()
+                time.sleep(2)
+                import pdb
+
+                pdb.set_trace()
 
     driver.quit()
 
@@ -54,7 +87,8 @@ def main(pdf):
     url = os.getenv("DOCS_SPIDER_URL")
     username = os.getenv("DOCS_SPIDER_USERNAME")
     password = os.getenv("DOCS_SPIDER_PASSWORD")
-    fetch_pdf_from_amsystem(url, username, password)
+    download_dir = os.getenv("DOCS_SPIDER_DOWNLOAD_DIR")
+    fetch_pdf_from_amsystem(url, username, password, download_dir)
     nodes = set()
     edges = set()
 
